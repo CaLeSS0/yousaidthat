@@ -18,6 +18,8 @@ from datetime import datetime
 from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 
+from keras import backend as K
+
 def convolution(x, filters, kernel_size=3, strides=1, padding='same'):
 	x = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, padding=padding)(x)
 	x = BatchNormalization(momentum=.8)(x)
@@ -77,45 +79,68 @@ def model(files, batch_size, epochs, steps_per_epoch, gpus, num_still_images, mo
 	# Decoder
 	x = Dense(98, activation='relu')(concatenated_features)
 	x = Reshape((7, 7, 2))(x)
-	x = transposed_convolution(x, 512, 6)
-	x = transposed_convolution(x, 256, 5)
-	x = concatenate([x, x_skip3])
-	x = transposed_convolution(x, 96, 5, 2)
-	x = concatenate([x, x_skip2])
-	x = transposed_convolution(x, 96, 5, 2)
-	x = concatenate([x, x_skip1])
-	x = transposed_convolution(x, 64, 5, 2)
-	decoded = Conv2DTranspose(3, (5, 5), strides=2, activation='sigmoid', padding='same')(x)
+	x = transposed_convolution(x, 512, 6) # 7, 7, 512
+	x = transposed_convolution(x, 256, 5) # 7, 7, 256
+	x = concatenate([x, x_skip3]) # 7, 7, 512
+	x = transposed_convolution(x, 96, 5, 2) # 14, 14, 96
+	x = concatenate([x, x_skip2]) # 14, 14, 352
+	x = transposed_convolution(x, 96, 5, 2) # 28, 28, 96
+	x = concatenate([x, x_skip1]) # 28, 28, 192
+	x = transposed_convolution(x, 64, 5, 2) # 56, 56, 64
+	decoded = Conv2DTranspose(3, (5, 5), strides=2, activation='sigmoid', padding='same')(x) # 112, 112, 3
 
 	model = Model(inputs = [input_audio, input_identity], outputs = [decoded])
- 
+	
+	for i in range(len(model.layers)):
+		if not 'conv' in model.layers[i].name:
+			continue
+		print(model.layers[i].name)
+		print(model.layers[i].get_weights())
+
+		# my_weights_matrix = np.ones(model.layers[i].get_weights())
+		# model.layers[i].set_weights([my_weights_matrix])
+		# model.layers[i].trainable = False
+
+	inp = model.input                                           # input placeholder
+	outputs = [layer.output for layer in model.layers]          # all layer outputs
+	functors = [K.function([inp], [out]) for out in outputs]    # evaluation functions
+
+	# Testing
+	test = np.ones((12, 35, 1))[np.newaxis,...]
+	layer_outs = [func([test]) for func in functors]
+	print(len(layer_outs))
+
+	# import pickle
+	# for i in range(len(layer_outs)):
+
+
 	# try:
 		# model = ModelMGPU(model, gpus)
 	# except:
 		# pass
 
-	model.compile(optimizer='adam', loss='mean_absolute_error')
-	print(model.summary())
+	# model.compile(optimizer='adam', loss='mean_absolute_error')
+	# print(model.summary())
 
-	logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-	tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+	# logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+	# tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
 
-	if not os.path.exists(model_dir):
-		os.makedirs(model_dir)
-
-
-	early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10)
-	checkpoint = ModelCheckpoint(model_dir+'/best_model.h5', monitor='val_loss', mode='min', \
-								verbose=1, save_best_only=True)
+	# if not os.path.exists(model_dir):
+	# 	os.makedirs(model_dir)
 
 
-	history = model.fit_generator(generator=training_generator,
-								validation_data=validation_generator,
-								steps_per_epoch=steps_per_epoch,
-								epochs=epochs,
-								use_multiprocessing=False,
-								callbacks=[tensorboard_callback, early_stopping, checkpoint]
-								)
+	# early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10)
+	# checkpoint = ModelCheckpoint(model_dir+'/best_model.h5', monitor='val_loss', mode='min', \
+	# 							verbose=1, save_best_only=True)
+
+
+	# history = model.fit_generator(generator=training_generator,
+	# 							validation_data=validation_generator,
+	# 							steps_per_epoch=steps_per_epoch,
+	# 							epochs=epochs,
+	# 							use_multiprocessing=False,
+	# 							callbacks=[tensorboard_callback, early_stopping, checkpoint]
+	# 							)
 
 
 

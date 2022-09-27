@@ -14,6 +14,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+from functools import reduce
+from operator import __add__
+
 # def convolution(x, filters, kernel_size=3, strides=1, padding='same'):
 # 	x = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, padding=padding)(x)
 # 	x = BatchNormalization(momentum=.8)(x)
@@ -38,11 +41,32 @@ class TalkingHeadModel(nn.Module):
 		x = nn.ReLU(inplace=True)(x)
 		return x
 
-	def transposed_convolution(self, x, in_, out_, kernel_size=3, strides=1, padding='same'):
-		x = nn.ConvTranspose2d(in_, out_, kernel_size=kernel_size, stride=strides, padding=padding)(x)
+	def transposed_convolution(self, x, in_, out_, kernel_size=3, strides=1): # 14, 14, 96
+		pad = self.calculate_padding((kernel_size, kernel_size))
+		x = F.pad(x, pad)
+		x = nn.ConvTranspose2d(in_, out_, kernel_size=kernel_size, stride=strides, padding=kernel_size-1)(x)
+
 		x = nn.BatchNorm2d(out_, momentum=0.8)(x)
 		x = nn.ReLU(inplace=True)(x)
 		return x
+
+	def transposed_convolution_from_F(self, x, in_, out_, kernel_size=3, strides=1): # 14, 14, 96
+		x = F.conv_transpose2d(in_, out_, kernel_size=kernel_size, stride=strides, padding='same')(x)
+
+		x = nn.BatchNorm2d(out_, momentum=0.8)(x)
+		x = nn.ReLU(inplace=True)(x)
+		return x
+
+	def upsample(self, x, in_, out_, kernel_size, strides):
+		upsample = nn.ConvTranspose2d(in_, out_, kernel_size, stride=strides, padding=kernel_size-2)(x)
+		return upsample
+
+	def calculate_padding(self, kernel):
+		conv_padding = reduce(__add__, 
+			[(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel[::-1]])
+		
+		return conv_padding
+
 
 	def audio_encoder_net(self, audio):
 		x = self.convolution(audio, 1, 64, 3) # 64, 12, 35
@@ -93,15 +117,21 @@ class TalkingHeadModel(nn.Module):
 		x = nn.ReLU(inplace=True)(x)
 		x = x.view(-1, 2, 7, 7)
 		
-		# PADDING SAME NEEDS TO BE HERE, BUT CANNOT MAKE IT WORK
-		x = self.transposed_convolution(x, 2, 512, 6)
-		x = self.transposed_convolution(x, 512, 256, 5)
-		x = torch.cat([x, x_skip3], 1)
-		x = self.transposed_convolution(x, 512, 256, 5)
+		# # PADDING SAME NEEDS TO BE HERE, BUT CANNOT MAKE IT WORK
+		# x = self.transposed_convolution_from_F(x, 2, 512, 6) # 512, 7, 7
+		# x = self.transposed_convolution_from_F(x, 512, 256, 5) # 256, 7, 7
+		# x = torch.cat([x, x_skip3], 1) # 512, 7, 7
+		# x = self.transposed_convolution_from_F(x, 512, 96, 5, 2) # 256, 7, 7
 
-
-
-
+	# x = transposed_convolution(x, 512, 6) # 7, 7, 512
+	# x = transposed_convolution(x, 256, 5) # 7, 7, 256
+	# x = concatenate([x, x_skip3]) # 7, 7, 512
+	# x = transposed_convolution(x, 96, 5, 2) # 14, 14, 96
+	# x = concatenate([x, x_skip2]) # 14, 14, 352
+	# x = transposed_convolution(x, 96, 5, 2) # 28, 28, 96
+	# x = concatenate([x, x_skip1]) # 28, 28, 192
+	# x = transposed_convolution(x, 64, 5, 2) # 56, 56, 64
+	# decoded = Conv2DTranspose(3, (5, 5), strides=2, activation='sigmoid', padding='same')(x) # 112, 112, 3
 	pass
 
 def model(files, batch_size, epochs, steps_per_epoch, gpus, num_still_images, model_dir):
@@ -115,12 +145,17 @@ def model(files, batch_size, epochs, steps_per_epoch, gpus, num_still_images, mo
 	t = 0
 
 	model = TalkingHeadModel(num_still_images)
+	for param in model.parameters():
+		print(param)
 
-	print(len(training_generator))
-	for i_batch, (X_audio, X_identity, Y) in enumerate(training_generator):		
-		print(i_batch, X_audio.shape)
+	# test = torch.ones((1, 1, 12, 35))
+	# model(test, test)
 
-		model(X_audio, X_identity)
+	# print(len(training_generator))
+	# for i_batch, (X_audio, X_identity, Y) in enumerate(training_generator):		
+	# 	print(i_batch, X_audio.shape)
+
+	# 	model(X_audio, X_identity)
 
 
 	# for i_batch, image in enumerate(dataloader):
