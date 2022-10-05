@@ -26,6 +26,8 @@ class TalkingFaceDataset(Dataset):
 
     def __getitem__(self, index):
         indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+        if len(indexes) == 0:
+            return [], [], []
 
         # # Find list of IDs
         batch_keys = [self.keys[k] for k in indexes]
@@ -49,7 +51,6 @@ class TalkingFaceDataset(Dataset):
 
         # Generate data
         for fname in batch_keys:
-
             frame_num = get_frame_num(fname)
             
             time = frame_num / self.fps
