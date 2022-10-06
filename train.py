@@ -90,25 +90,55 @@ def model(files, batch_size, epochs, steps_per_epoch, gpus, num_still_images, mo
 	decoded = Conv2DTranspose(3, (5, 5), strides=2, activation='sigmoid', padding='same')(x) # 112, 112, 3
 
 	model = Model(inputs = [input_audio, input_identity], outputs = [decoded])
+	print('model: ', model)
 	
-	for i in range(len(model.layers)):
-		if not 'conv' in model.layers[i].name:
-			continue
-		print(model.layers[i].name)
-		print(model.layers[i].get_weights())
+	# layer_count = 0
+	# for i in range(len(model.layers)):
+	# 	weights = model.layers[i].get_weights()
+	# 	if len(weights) == 0:
+	# 		continue
+
+	# 	if "conv" in model.layers[i].name or "batch" in model.layers[i].name:
+	# 		# print(weights)
+	# 		f = open(f"weights/layer_{layer_count}.txt", "w")
+	# 		for ii in range(len(weights)):
+	# 			for jj in range(len(weights[ii])):
+	# 				if type(weights[ii][jj]) != np.float32:
+	# 					for kk in range(len(weights[ii][jj])):
+	# 						for nn in range(len(weights[ii][jj][kk][0])):
+	# 							f.write(f"{weights[ii][jj][kk][0][nn]}\n")
+	# 				else:
+	# 					f.write(f"{weights[ii][jj]}\n")
+
+				
+	# 			f.write("\n")
+	# 		f.close()
+
+	# 	elif "dense" in model.layers[i].name:
+	# 		f = open(f"weights/layer_{layer_count}.txt", "w")
+	# 		for ii in range(len(weights)):
+	# 			for jj in range(len(weights[ii])):
+	# 				if type(weights[ii][jj]) != np.float32:
+	# 					for kk in range(len(weights[ii][jj])):
+	# 						f.write(f"{weights[ii][jj][kk]}\n")
+	# 				else:
+	# 					f.write(f"{weights[ii][jj]}\n")
+	# 			f.write("\n")
+	# 		f.close()		
+	# 	layer_count += 1
 
 		# my_weights_matrix = np.ones(model.layers[i].get_weights())
 		# model.layers[i].set_weights([my_weights_matrix])
 		# model.layers[i].trainable = False
 
-	inp = model.input                                           # input placeholder
-	outputs = [layer.output for layer in model.layers]          # all layer outputs
-	functors = [K.function([inp], [out]) for out in outputs]    # evaluation functions
+	# inp = model.input                                           # input placeholder
+	# outputs = [layer.output for layer in model.layers]          # all layer outputs
+	# functors = [K.function([inp], [out]) for out in outputs]    # evaluation functions
 
-	# Testing
-	test = np.ones((12, 35, 1))[np.newaxis,...]
-	layer_outs = [func([test]) for func in functors]
-	print(len(layer_outs))
+	# # Testing
+	# test = np.ones((12, 35, 1))[np.newaxis,...]
+	# layer_outs = [func([test]) for func in functors]
+	# print(len(layer_outs))
 
 	# import pickle
 	# for i in range(len(layer_outs)):
@@ -119,28 +149,28 @@ def model(files, batch_size, epochs, steps_per_epoch, gpus, num_still_images, mo
 	# except:
 		# pass
 
-	# model.compile(optimizer='adam', loss='mean_absolute_error')
-	# print(model.summary())
+	model.compile(optimizer='adam', loss='mean_absolute_error')
+	print(model.summary())
 
-	# logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-	# tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
+	logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+	tensorboard_callback = keras.callbacks.TensorBoard(log_dir=logdir)
 
-	# if not os.path.exists(model_dir):
-	# 	os.makedirs(model_dir)
-
-
-	# early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10)
-	# checkpoint = ModelCheckpoint(model_dir+'/best_model.h5', monitor='val_loss', mode='min', \
-	# 							verbose=1, save_best_only=True)
+	if not os.path.exists(model_dir):
+		os.makedirs(model_dir)
 
 
-	# history = model.fit_generator(generator=training_generator,
-	# 							validation_data=validation_generator,
-	# 							steps_per_epoch=steps_per_epoch,
-	# 							epochs=epochs,
-	# 							use_multiprocessing=False,
-	# 							callbacks=[tensorboard_callback, early_stopping, checkpoint]
-	# 							)
+	early_stopping = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=10)
+	checkpoint = ModelCheckpoint(model_dir+'/best_model.h5', monitor='val_loss', mode='min', \
+								verbose=1, save_best_only=True)
+
+
+	history = model.fit_generator(generator=training_generator,
+								validation_data=validation_generator,
+								steps_per_epoch=steps_per_epoch,
+								epochs=epochs,
+								use_multiprocessing=False,
+								callbacks=[tensorboard_callback, early_stopping, checkpoint]
+								)
 
 
 

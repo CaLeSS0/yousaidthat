@@ -132,7 +132,7 @@ if __name__ == '__main__':
 	parser.add_argument('-f', '--test_frame', help='Test frame', default="frame.jpg")
 	parser.add_argument('-fd', '--test_feature_dir', default='test_features', required=False, \
 						help='Path to dave test features')
-	parser.add_argument('-o', '--output_file_name', default='output_video', required=False, \
+	parser.add_argument('-o', '--output_file_name', default='output_video2', required=False, \
 						help='Name of the output video file')
 	args = parser.parse_args()
 
