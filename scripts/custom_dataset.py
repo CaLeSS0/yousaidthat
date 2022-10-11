@@ -131,6 +131,6 @@ class TalkingFaceDataset(Dataset):
             # Store ground truth data
             Y_train.append(y_train)
 
-        return torch.as_tensor(X_audio).permute(0, 3, 1, 2), \
-                torch.as_tensor(X_identity).permute(0, 3, 1, 2), \
-                torch.as_tensor(Y_train).permute(0, 3, 1, 2)
+        return torch.as_tensor(np.array(X_audio)).permute(0, 3, 1, 2), \
+                torch.as_tensor(np.array(X_identity)).permute(0, 3, 1, 2), \
+                torch.as_tensor(np.array(Y_train)).permute(0, 3, 1, 2)
