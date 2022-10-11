@@ -57,3 +57,6 @@ Thumbs.db
 *.mov
 *.wmv
 *.mkv
+
+#
+*.txt
